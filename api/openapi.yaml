@@ -155,3 +155,220 @@ paths:
                 refresh_token: { type: string }
       responses:
         "204": { description: Session revoked }
+
+  /feed:
+    get:
+      tags: [posts]
+      summary: Global feed of top level posts
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: A page of posts, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostPage" }
+
+  /me:
+    get:
+      tags: [users]
+      summary: The authenticated account
+      responses:
+        "200":
+          description: Private profile of the caller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [users]
+      summary: Update the authenticated account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string, maxLength: 80 }
+                avatar_url: { type: string }
+                bio: { type: string, maxLength: 280 }
+      responses:
+        "200":
+          description: Updated account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /me/publishers:
+    get:
+      tags: [publishers]
+      summary: Identities the caller may publish as
+      description: The personal publisher plus every project the caller owns or belongs to.
+      responses:
+        "200":
+          description: Publishing identities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Publisher" }
+
+  /users/{username}:
+    get:
+      tags: [users]
+      summary: Public profile with project showcase and activity
+      security: []
+      parameters:
+        - { name: username, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: Profile view
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/Profile" }
+                  projects:
+
+  /users/{username}/posts:
+    get:
+      tags: [users]
+      summary: Activity of a user
+      security: []
+      parameters:
+        - { name: username, in: path, required: true, schema: { type: string } }
+        - name: scope
+          in: query
+          schema: { type: string, enum: [all, user, projects], default: all }
+          description: all (default) also includes posts published by the user's projects
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: A page of posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostPage" }
+
+  /projects:
+    post:
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name: { type: string, maxLength: 80 }
+                slug: { type: string, description: Lowercase URL identifier, example SonarAI }
+                tagline: { type: string, maxLength: 140 }
+                description: { type: string }
+                avatar_url: { type: string }
+      responses:
+        "201":
+          description: Project created together with its publisher and owner membership
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCreated" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /projects/{slug}:
+    get:
+      tags: [projects]
+      summary: Project page with its posts
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/Slug" }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: Project view
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+                  posts: { $ref: "#/components/schemas/PostPage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [projects]
+      summary: Update a project
+      description: Owners only.
+      parameters:
+        - { $ref: "#/components/parameters/Slug" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 80 }
+                tagline: { type: string, maxLength: 140 }
+                description: { type: string }
+                avatar_url: { type: string }
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /projects/{slug}/posts:
+    get:
+      tags: [projects]
+      summary: Posts published by the project
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/Slug" }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: A page of posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostPage" }
+
+                    type: array
+                    items: { $ref: "#/components/schemas/Project" }
+                  posts: { $ref: "#/components/schemas/PostPage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /users/{username}/projects:
+    get:
+      tags: [users]
+      summary: Project showcase of a user
+      security: []
+      parameters:
+        - { name: username, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Projects owned by the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Project" }
+

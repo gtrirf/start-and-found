@@ -35,10 +35,10 @@ func TestDecodeRejectsInvalidCursors(t *testing.T) {
 
 func TestNormalizeLimit(t *testing.T) {
 	tests := map[int]int{
-		0:           DefaultLimit,
-		-5:          DefaultLimit,
-		10:          10,
-		MaxLimit:    MaxLimit,
+		0:            DefaultLimit,
+		-5:           DefaultLimit,
+		10:           10,
+		MaxLimit:     MaxLimit,
 		MaxLimit + 9: MaxLimit,
 	}
 

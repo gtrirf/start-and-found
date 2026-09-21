@@ -84,4 +84,3 @@ func Stats(root *Node) (postCount int, maxDepth int) {
 	}
 	return postCount, maxDepth
 }
-

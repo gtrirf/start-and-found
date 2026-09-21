@@ -269,4 +269,3 @@ func (r *Repository) scanOne(ctx context.Context, query string, args ...any) (Pr
 type scanner interface {
 	Scan(dest ...any) error
 }
-
