@@ -30,15 +30,18 @@ func ParseHandle(handle string) (username string, projectSlug string, err error)
 	parts := strings.Split(trimmed, "/")
 	switch len(parts) {
 	case 1:
-		if parts[0] == "" {
+		username := strings.ToLower(strings.TrimSpace(parts[0]))
+		if username == "" {
 			return "", "", apierr.BadRequest("publisher handle must look like @username or @username/project")
 		}
-		return strings.ToLower(parts[0]), "", nil
+		return username, "", nil
 	case 2:
-		if parts[0] == "" || parts[1] == "" {
+		username := strings.ToLower(strings.TrimSpace(parts[0]))
+		projectSlug := strings.ToLower(strings.TrimSpace(parts[1]))
+		if username == "" || projectSlug == "" {
 			return "", "", apierr.BadRequest("publisher handle must look like @username or @username/project")
 		}
-		return strings.ToLower(parts[0]), strings.ToLower(parts[1]), nil
+		return username, projectSlug, nil
 	default:
 		return "", "", apierr.BadRequest("publisher handle must look like @username or @username/project")
 	}
