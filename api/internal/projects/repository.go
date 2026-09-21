@@ -209,6 +209,25 @@ SELECT EXISTS (
 	return allowed, nil
 }
 
+// CanManagePostsFor reports whether the user may edit or delete posts published
+// by the project: the owner and admins can, regular members cannot.
+func (r *Repository) CanManagePostsFor(ctx context.Context, projectID, userID uuid.UUID) (bool, error) {
+	const query = `
+SELECT EXISTS (
+    SELECT 1
+    FROM projects pr
+    LEFT JOIN project_members pm
+           ON pm.project_id = pr.id AND pm.user_id = $2 AND pm.role IN ('owner', 'admin')
+    WHERE pr.id = $1 AND (pr.owner_id = $2 OR pm.user_id IS NOT NULL)
+)`
+
+	var allowed bool
+	if err := r.q.QueryRow(ctx, query, projectID, userID).Scan(&allowed); err != nil {
+		return false, fmt.Errorf("check project post permissions: %w", err)
+	}
+	return allowed, nil
+}
+
 func handle(ownerUsername, slug string) string {
 	return "@" + ownerUsername + "/" + slug
 }

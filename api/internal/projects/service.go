@@ -11,14 +11,27 @@ import (
 	"github.com/gtrirf/start-and-found/api/internal/platform/ids"
 	"github.com/gtrirf/start-and-found/api/internal/platform/validate"
 	"github.com/gtrirf/start-and-found/api/internal/publishers"
-	"github.com/gtrirf/start-and-found/api/internal/users"
 )
+
+// Owner is the account a project belongs to. The projects domain only needs the
+// identifier and the username of that account, so it never imports the users
+// domain: the lookup is injected by the composition root (internal/app).
+type Owner struct {
+	ID       uuid.UUID
+	Username string
+}
+
+// OwnerLookup resolves the accounts referenced by projects.
+type OwnerLookup interface {
+	ByID(ctx context.Context, id uuid.UUID) (Owner, error)
+	ByUsername(ctx context.Context, username string) (Owner, error)
+}
 
 // Service implements the project use cases.
 type Service struct {
 	db         *database.DB
 	projects   *Repository
-	users      *users.Repository
+	owners     OwnerLookup
 	publishers *publishers.Repository
 }
 
@@ -26,10 +39,10 @@ type Service struct {
 func NewService(
 	db *database.DB,
 	projectsRepo *Repository,
-	usersRepo *users.Repository,
+	owners OwnerLookup,
 	publishersRepo *publishers.Repository,
 ) *Service {
-	return &Service{db: db, projects: projectsRepo, users: usersRepo, publishers: publishersRepo}
+	return &Service{db: db, projects: projectsRepo, owners: owners, publishers: publishersRepo}
 }
 
 // Create registers a project for the owner. The project publisher and the owner
@@ -67,7 +80,7 @@ func (s *Service) Create(ctx context.Context, ownerID uuid.UUID, input CreateInp
 		return Project{}, publishers.Publisher{}, err
 	}
 
-	owner, err := s.users.ByID(ctx, ownerID)
+	owner, err := s.owners.ByID(ctx, ownerID)
 	if err != nil {
 		return Project{}, publishers.Publisher{}, err
 	}
@@ -190,7 +203,7 @@ func (s *Service) AddMember(ctx context.Context, projectID, callerID uuid.UUID, 
 		return nil, apierr.Validation("username is required", map[string]any{"field": "username"})
 	}
 
-	member, err := s.users.ByUsername(ctx, username)
+	member, err := s.owners.ByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}

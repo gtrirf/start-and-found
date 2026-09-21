@@ -32,7 +32,7 @@ const (
 
 var (
 	usernamePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9_-]{1,28}[a-z0-9])$`)
-	slugPattern     = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])$`)
+	slugPattern     = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$`)
 )
 
 // Username validates a handle. Usernames are lowercase and may contain digits,

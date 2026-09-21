@@ -12,7 +12,6 @@ import (
 	"github.com/gtrirf/start-and-found/api/internal/platform/ids"
 	"github.com/gtrirf/start-and-found/api/internal/platform/pagination"
 	"github.com/gtrirf/start-and-found/api/internal/platform/validate"
-	"github.com/gtrirf/start-and-found/api/internal/projects"
 	"github.com/gtrirf/start-and-found/api/internal/publishers"
 )
 
@@ -21,12 +20,22 @@ type MediaURLBuilder interface {
 	PublicURL(key string) string
 }
 
+// ProjectPermissions is the part of the projects domain the posts domain needs:
+// who may publish as a project and who may manage a project's posts.
+//
+// Declaring it here keeps posts free of a dependency on projects, which would
+// otherwise close an import cycle through the users domain.
+type ProjectPermissions interface {
+	CanPostAs(ctx context.Context, projectID, userID uuid.UUID) (bool, error)
+	CanManagePostsFor(ctx context.Context, projectID, userID uuid.UUID) (bool, error)
+}
+
 // Service implements the publishing use cases.
 type Service struct {
 	db         *database.DB
 	posts      *Repository
 	publishers *publishers.Repository
-	projects   *projects.Repository
+	projects   ProjectPermissions
 	media      MediaURLBuilder
 }
 
@@ -35,10 +44,10 @@ func NewService(
 	db *database.DB,
 	postsRepo *Repository,
 	publishersRepo *publishers.Repository,
-	projectsRepo *projects.Repository,
+	projects ProjectPermissions,
 	media MediaURLBuilder,
 ) *Service {
-	return &Service{db: db, posts: postsRepo, publishers: publishersRepo, projects: projectsRepo, media: media}
+	return &Service{db: db, posts: postsRepo, publishers: publishersRepo, projects: projects, media: media}
 }
 
 // Feed returns the global feed of top level posts.
@@ -279,11 +288,11 @@ func (s *Service) requireManage(ctx context.Context, post Post, callerID uuid.UU
 			return err
 		}
 		if publisher.ProjectID != nil {
-			role, err := s.projects.Role(ctx, *publisher.ProjectID, callerID)
+			allowed, err := s.projects.CanManagePostsFor(ctx, *publisher.ProjectID, callerID)
 			if err != nil {
 				return err
 			}
-			if role == projects.RoleOwner {
+			if allowed {
 				return nil
 			}
 		}

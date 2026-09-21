@@ -13,8 +13,8 @@ import (
 	"github.com/gtrirf/start-and-found/api/internal/platform/database"
 )
 
-// Session is one stored refresh session.
-type Session struct {
+// SessionRow is one stored refresh session.
+type SessionRow struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
 	TokenHash string
@@ -36,7 +36,7 @@ func NewSessionsRepository(q database.Querier) *SessionsRepository {
 }
 
 // Create stores a refresh session.
-func (r *SessionsRepository) Create(ctx context.Context, session Session) error {
+func (r *SessionsRepository) Create(ctx context.Context, session SessionRow) error {
 	const query = `
 INSERT INTO sessions (id, user_id, token_hash, user_agent, ip, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)`
@@ -50,7 +50,7 @@ VALUES ($1, $2, $3, $4, $5, $6)`
 }
 
 // ByTokenHash loads an active session, rejecting revoked and expired ones.
-func (r *SessionsRepository) ByTokenHash(ctx context.Context, tokenHash string) (Session, error) {
+func (r *SessionsRepository) ByTokenHash(ctx context.Context, tokenHash string) (SessionRow, error) {
 	const query = `
 SELECT id, user_id, token_hash, user_agent, ip, expires_at, revoked_at, created_at
 FROM sessions
@@ -58,16 +58,16 @@ WHERE token_hash = $1`
 
 	session, err := scanSession(r.q.QueryRow(ctx, query, tokenHash))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return Session{}, apierr.Unauthorized("refresh token is invalid")
+		return SessionRow{}, apierr.Unauthorized("refresh token is invalid")
 	}
 	if err != nil {
-		return Session{}, fmt.Errorf("load session: %w", err)
+		return SessionRow{}, fmt.Errorf("load session: %w", err)
 	}
 	if session.RevokedAt != nil {
-		return Session{}, apierr.Unauthorized("refresh token was revoked")
+		return SessionRow{}, apierr.Unauthorized("refresh token was revoked")
 	}
 	if time.Now().After(session.ExpiresAt) {
-		return Session{}, apierr.Unauthorized("refresh token has expired")
+		return SessionRow{}, apierr.Unauthorized("refresh token has expired")
 	}
 	return session, nil
 }
@@ -98,8 +98,8 @@ func (r *SessionsRepository) DeleteExpired(ctx context.Context, before time.Time
 	return tag.RowsAffected(), nil
 }
 
-func scanSession(row scanner) (Session, error) {
-	var session Session
+func scanSession(row scanner) (SessionRow, error) {
+	var session SessionRow
 	err := row.Scan(
 		&session.ID,
 		&session.UserID,

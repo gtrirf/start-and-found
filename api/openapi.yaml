@@ -1,0 +1,157 @@
+openapi: 3.1.0
+
+# The README states the API is documented and frontend independent, so the
+# contract lives next to the code it describes. Point any OpenAPI tooling at this
+# file (openapi-typescript, Swagger UI, Postman, ...).
+info:
+  title: Start & Found API
+  description: |
+    REST API of the startup social platform.
+
+    Two identities can publish (see the README "Publishing Model"): a user
+    (`@HanzoDev`) or one of their projects (`@HanzoDev/SonarAI`). Posts always
+    reference a publisher, never a user directly.
+
+    Authentication uses an HS256 access token (15 minutes by default) plus an
+    opaque refresh token that must be sent to `/auth/refresh` and `/auth/logout`.
+
+    Errors always use the same envelope:
+
+    ```json
+    {"error": {"code": "not_found", "message": "post not found"}}
+    ```
+  version: "0.1.0"
+  license:
+    name: TBD
+
+servers:
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: auth
+    description: Registration, login and session rotation
+  - name: users
+    description: Personal profiles and the activity shown on them
+  - name: projects
+    description: Startup and side project identities, their teams and posts
+  - name: publishers
+    description: Publishing identities (a user or a project)
+  - name: posts
+    description: Publishing and editing content
+  - name: threads
+    description: Reply trees assembled from posts
+  - name: media
+    description: Signed uploads to object storage
+
+paths:
+  /healthz:
+    get:
+      tags: [auth]
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: The process is running
+  /readyz:
+    get:
+      tags: [auth]
+      summary: Readiness probe
+      description: Reports the state of PostgreSQL, Redis and object storage.
+      security: []
+      responses:
+        "200":
+          description: Every required dependency is reachable
+        "503":
+          description: PostgreSQL is unavailable
+
+  /auth/signup:
+    post:
+      tags: [auth]
+      summary: Register an account
+      description: Creates the account, its personal publisher and a session.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, display_name, password]
+              properties:
+                username: { type: string, example: HanzoDev }
+                email: { type: string, format: email, example: hanzo@example.com }
+                display_name: { type: string, example: Hanzo }
+                password: { type: string, minLength: 8, example: password123 }
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, password]
+              properties:
+                identifier: { type: string, description: Username or email, example: HanzoDev }
+                password: { type: string, example: password123 }
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate a refresh token
+      description: The presented token is revoked and a new session is returned.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200":
+          description: New session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke a session
+      description: Idempotent - unknown or already revoked tokens also return 204.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "204": { description: Session revoked }

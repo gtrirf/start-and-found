@@ -22,7 +22,6 @@ func Handle(username, projectSlug string) string {
 func ParseHandle(handle string) (username string, projectSlug string, err error) {
 	trimmed := strings.TrimSpace(handle)
 	trimmed = strings.TrimPrefix(trimmed, "@")
-	trimmed = strings.Trim(trimmed, "/")
 	if trimmed == "" {
 		return "", "", apierr.BadRequest("publisher handle must not be empty")
 	}

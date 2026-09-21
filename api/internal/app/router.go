@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/gtrirf/start-and-found/api/internal/auth"
@@ -70,7 +71,7 @@ func newRouter(deps Dependencies) http.Handler {
 
 	postService := posts.NewService(deps.DB, postsRepository, publishersRepository, projectsRepository, deps.Storage)
 	mediaService := media.NewService(mediaRepository, deps.Storage)
-	projectService := projects.NewService(deps.DB, projectsRepository, usersRepository, publishersRepository)
+	projectService := projects.NewService(deps.DB, projectsRepository, projectOwners{users: usersRepository}, publishersRepository)
 	userService := users.NewService(usersRepository, projectsRepository, postService, publishersRepository)
 	threadService := threads.NewService(postService)
 
@@ -127,6 +128,31 @@ type routeHandlers struct {
 	threads  *threads.Handler
 	media    *media.Handler
 	limiter  *ratelimit.Limiter
+}
+
+// projectOwners adapts the users repository to the narrow lookup the projects
+// domain declares. The adapter lives in the composition root, which is what keeps
+// the users and projects domains free of an import cycle.
+type projectOwners struct {
+	users *users.Repository
+}
+
+// ByID implements projects.OwnerLookup.
+func (o projectOwners) ByID(ctx context.Context, id uuid.UUID) (projects.Owner, error) {
+	user, err := o.users.ByID(ctx, id)
+	if err != nil {
+		return projects.Owner{}, err
+	}
+	return projects.Owner{ID: user.ID, Username: user.Username}, nil
+}
+
+// ByUsername implements projects.OwnerLookup.
+func (o projectOwners) ByUsername(ctx context.Context, username string) (projects.Owner, error) {
+	user, err := o.users.ByUsername(ctx, username)
+	if err != nil {
+		return projects.Owner{}, err
+	}
+	return projects.Owner{ID: user.ID, Username: user.Username}, nil
 }
 
 // registerRoutes mounts every domain under /v1.

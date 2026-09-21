@@ -1,0 +1,61 @@
+name: docker
+
+# Builds both images so a broken Dockerfile is caught before a release. Images
+# are pushed to GHCR only for version tags.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "api/**"
+      - "web/**"
+      - "deploy/**"
+      - "docker-compose.yml"
+      - ".github/workflows/docker.yml"
+  pull_request:
+    paths:
+      - "api/**"
+      - "web/**"
+      - "deploy/**"
+      - "docker-compose.yml"
+      - ".github/workflows/docker.yml"
+
+jobs:
+  images:
+    name: build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: api
+            context: ./api
+          - image: web
+            context: ./web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: |
+            ghcr.io/${{ github.repository }}-${{ matrix.image }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}-${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { errorEnvelopeBody, isApiError, parseJsonObject } from "@/lib/api/error";
+import { errorEnvelopeBody, isApiError } from "@/lib/api/error";
+import { parseJsonObject } from "@/lib/api/guards";
 import { apiFetch } from "@/lib/api/server";
 import type { ApiMethod } from "@/lib/api/types";
 

@@ -6,7 +6,8 @@
  * unwraps the error envelope into an {@link ApiError}.
  */
 
-import { ApiError, apiErrorFromPayload, parseJsonObject } from "./error";
+import { ApiError, apiErrorFromPayload } from "./error";
+import { parseJsonObject } from "./guards";
 import type { ApiMethod } from "./types";
 
 export { ApiError } from "./error";

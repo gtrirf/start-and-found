@@ -7,8 +7,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { errorEnvelopeBody, isApiError, parseJsonObject } from "./api/error";
-import { isRecord, parseAuthTokens, readAccount } from "./api/guards";
+import { errorEnvelopeBody, isApiError } from "./api/error";
+import { isRecord, parseAuthTokens, parseJsonObject, readAccount } from "./api/guards";
 import { apiFetch } from "./api/server";
 import type { ApiErrorBody, ApiErrorDetails, AuthSession } from "./api/types";
 import { clearSessionCookies, readSession, setSessionCookies } from "./session";
@@ -27,7 +27,7 @@ function envelope(
   return NextResponse.json({ error: body }, { status });
 }
 
-/** Renders any failure with the platform error envelope. */
+/** Renders a failure with the platform error envelope. */
 export function errorResponse(error: unknown): NextResponse {
   if (isApiError(error)) {
     if (error.status >= 400) {

@@ -405,6 +405,107 @@ The current goal is to build the smallest complete version of the platform, rele
 
 ---
 
+## Local Development
+
+### Requirements
+
+```text
+Go        1.26+
+Node.js   22+
+pnpm      9+
+Docker    with the Compose plugin
+```
+
+### Quickstart
+
+```bash
+cp .env.example .env       # every value has a development default
+make up                    # postgres, redis and minio (with the media bucket)
+make migrate-up            # apply the schema
+make seed                  # load fixtures: @HanzoDev, @HanzoDev/SonarAI, ...
+make api-run               # terminal 1: http://localhost:8080
+make web-dev               # terminal 2: http://localhost:3000
+```
+
+`make dev` starts the infrastructure and prints the two commands that follow it.
+
+The seeded accounts all use the password `password123`:
+
+```text
+@HanzoDev  ->  projects: SonarAI, Tarantul
+@mira      ->  projects: Orbit, member of SonarAI
+@devnull
+```
+
+### Repository layout
+
+```text
+start-and-found/
+├── api/                        Go monolith (one module, one deployable)
+│   ├── cmd/api                 HTTP server
+│   ├── cmd/migrate             up | down | version | force (embedded SQL)
+│   ├── cmd/seed                loads seeds/dev.sql
+│   ├── internal/<domain>/      auth, users, projects, publishers, posts,
+│   │                           threads, media, reactions, follows, notifications
+│   ├── internal/platform/      config, database, cache, storage, httpx, ...
+│   ├── internal/app/           composition root: wiring + router
+│   ├── migrations/             SQL schema
+│   └── openapi.yaml            REST contract
+├── web/                        Next.js application (App Router)
+├── deploy/                     local infrastructure configuration
+├── scripts/smoke.sh            end-to-end smoke test against a running API
+└── docker-compose.yml
+```
+
+Each domain package holds the same set of files (`models.go`, `repository.go`,
+`service.go`, `handlers.go`, `routes.go`), which keeps the backend organized by
+product domain instead of by technical layer.
+
+### Common commands
+
+```text
+make up / down / reset      infrastructure lifecycle
+make migrate-up / -down     schema migrations
+make seed                   development fixtures
+make api-run / api-test     run or test the API
+make api-lint / api-fmt     gofmt + go vet / gofmt -w
+make web-dev / web-build    run or build the web app
+make check                  every lint, type check and test
+make smoke                  end-to-end smoke test against a running API
+```
+
+### Tests
+
+```bash
+make api-test               # unit tests, no infrastructure required
+make check                  # API + web checks
+```
+
+The end-to-end test (`api/internal/app/integration_test.go`) covers signup,
+profile, project creation, publishing as a project, replies and threads. It runs
+only when a migrated database is available:
+
+```bash
+cd api
+TEST_DATABASE_URL='postgres://saf:saf@localhost:5432/saf?sslmode=disable' go test ./... -count=1
+```
+
+GitHub Actions provides PostgreSQL and Redis services, applies the migrations and
+runs the whole suite on every pull request (`.github/workflows/api.yml`).
+
+### API
+
+The REST contract is documented in `api/openapi.yaml` and served under `/v1`.
+Health probes live outside the versioned prefix: `GET /healthz` (liveness) and
+`GET /readyz` (PostgreSQL, Redis and object storage).
+
+Authentication returns an access token (JWT, 15 minutes) and a refresh token
+(opaque, 30 days, rotated on every refresh). The web application never exposes
+those tokens to JavaScript: Next.js route handlers keep them in httpOnly cookies
+and proxy authenticated calls.
+
+---
+
 ## License
 
 TBD

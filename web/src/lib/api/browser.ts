@@ -5,7 +5,8 @@
  */
 
 import { ApiError, apiRequest } from "./client";
-import { parseJsonObject, readErrorEnvelope } from "./error";
+import { readErrorEnvelope } from "./error";
+import { parseJsonObject } from "./guards";
 import type {
   Account,
   CreatePostInput,

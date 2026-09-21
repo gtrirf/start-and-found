@@ -1,0 +1,8 @@
+bin/
+tmp/
+coverage.txt
+coverage.html
+*.out
+*.test
+Dockerfile
+.dockerignore

@@ -96,7 +96,7 @@ func (s *Service) Signup(ctx context.Context, input SignupInput, meta RequestMet
 		if _, err := publishers.NewRepository(q).EnsureForUser(ctx, user.ID); err != nil {
 			return err
 		}
-		return NewSessionsRepository(q).Create(ctx, Session{
+		return NewSessionsRepository(q).Create(ctx, SessionRow{
 			ID:        ids.New(),
 			UserID:    user.ID,
 			TokenHash: refreshHash,
@@ -142,7 +142,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput, meta RequestMeta)
 	}
 	refreshExpiresAt := s.now().Add(s.refreshTTL)
 
-	if err := s.sessions.Create(ctx, Session{
+	if err := s.sessions.Create(ctx, SessionRow{
 		ID:        ids.New(),
 		UserID:    user.ID,
 		TokenHash: refreshHash,
@@ -206,7 +206,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, meta Request
 		if err := repo.Revoke(ctx, existing.ID); err != nil {
 			return err
 		}
-		return repo.Create(ctx, Session{
+		return repo.Create(ctx, SessionRow{
 			ID:        ids.New(),
 			UserID:    user.ID,
 			TokenHash: newHash,

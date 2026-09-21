@@ -1,0 +1,87 @@
+name: api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - ".github/workflows/api.yml"
+  pull_request:
+    paths:
+      - "api/**"
+      - ".github/workflows/api.yml"
+
+defaults:
+  run:
+    working-directory: api
+
+jobs:
+  test:
+    name: build, lint and test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: saf
+          POSTGRES_PASSWORD: saf
+          POSTGRES_DB: saf
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U saf -d saf"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://saf:saf@localhost:5432/saf?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-secret-value-that-is-long-enough-0000
+      # Enables the end-to-end test in internal/app.
+      TEST_DATABASE_URL: postgres://saf:saf@localhost:5432/saf?sslmode=disable
+      TEST_REDIS_URL: redis://localhost:6379/0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: api/go.sum
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          working-directory: api
+
+      - name: Apply migrations
+        run: go run ./cmd/migrate up
+
+      - name: Load fixtures
+        run: go run ./cmd/seed
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Build commands
+        run: go build -o /dev/null ./cmd/...

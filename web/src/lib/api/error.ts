@@ -56,7 +56,7 @@ export function errorEnvelopeBody(error: ApiError): ApiErrorEnvelope {
   return { error: body };
 }
 
-/** Turns any non-OK payload into an {@link ApiError}. */
+/** Turns a non-OK payload into an {@link ApiError}. */
 export function apiErrorFromPayload(status: number, payload: unknown): ApiError {
   const envelope = readErrorEnvelope(payload);
   if (envelope === null) {
